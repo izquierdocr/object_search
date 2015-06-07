@@ -1,0 +1,145 @@
+#include <ros/ros.h>
+#include <move_base_msgs/MoveBaseAction.h>
+#include <actionlib/client/simple_action_client.h>
+#include <speech_recognition_msgs/SpeechRecognitionCandidates.h> //Import speech messages definition
+#include <tf/transform_broadcaster.h> //Convert Angles to Quaternions
+#include "sound_play/sound_play.h" //Playing text to voice messages
+
+using namespace std; 
+
+typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> MoveBaseClient;
+
+//static ros::Publisher kinect_pub_;
+//static sound_play::SoundClient robot_voice;
+std::string command="none";
+
+void sleepok(int t, ros::NodeHandle &n) {
+  if (n.ok()) sleep(t);
+}
+
+void textToSpeech(string speech, unsigned int counter, sound_play::SoundClient &sc, ros::NodeHandle &nh)
+{
+   sc.say(speech);
+   sleepok(counter, nh);        
+}
+
+geometry_msgs::Quaternion angle2quaternion(double theta) {
+  //double grades //Counter-clock angle in grades
+  double radians = theta * (M_PI/180);
+
+  tf::Quaternion quaternion;
+  quaternion = tf::createQuaternionFromYaw(radians);
+  geometry_msgs::Quaternion qMsg;
+  tf::quaternionTFToMsg(quaternion, qMsg);
+  return qMsg;
+}
+
+//void setGoal(MoveBaseClient ac, double x, double y, double theta, std::string frameID) {
+bool setGoal(double x, double y, double theta, std::string frameID) {
+  //tell the action client that we want to spin a thread by default
+  MoveBaseClient ac("move_base", true);
+
+  //wait for the action server to come up
+  while(!ac.waitForServer(ros::Duration(5.0))){
+    ROS_INFO("Waiting for the move_base action server to come up");
+  }
+
+  move_base_msgs::MoveBaseGoal goal;
+  goal.target_pose.header.frame_id = frameID; //map:world relative, base_link: robot relative
+  goal.target_pose.header.stamp = ros::Time::now();
+  goal.target_pose.pose.position.x = x;
+  goal.target_pose.pose.position.y = y;
+  if ( frameID=="map" )
+    goal.target_pose.pose.orientation = angle2quaternion(theta);
+  else
+    goal.target_pose.pose.orientation.w = 1.0;
+
+  ROS_INFO("Sending goal");
+  ac.sendGoal(goal);
+
+  ac.waitForResult();
+
+  if(ac.getState() == actionlib::SimpleClientGoalState::SUCCEEDED) {
+    ROS_INFO("Goal reached");
+    return true;
+  }
+  else {
+    ROS_INFO("The robot failed to move to the goal for some reason");
+    return false;
+  }
+}
+
+void voice(const speech_recognition_msgs::SpeechRecognitionCandidates& commandList) {
+  command = commandList.transcript[0];
+  ROS_INFO ("Best match: %s", command.c_str() );
+
+  //place=command; //Need to be filtered/analized to match a valid command
+
+  //ROS_INFO ("Confidence: %f", commandList.confidence[0] ); //Android app is not sending confidence
+}
+
+
+int main(int argc, char** argv){
+  ros::init(argc, argv, "simple_navigation_goals");
+  ros::NodeHandle n;
+
+  //Suscribe to android voice recognizer node
+  ros::Subscriber voice_sub_= n.subscribe("/voice", 1, voice);
+
+  //Create a voice synthesizer device
+  sound_play::SoundClient robot_voice;
+  sleepok(1, n);
+
+  robot_voice.say("I am listening you!. Please tell me a command.","");
+  sleepok(8, n);  
+
+  while (ros::ok()) {
+    //robot_voice.say("beep beep. I am listening you!. Say stop to finish.","");
+    //robot_voice.say(command.c_str(),"");
+    if (command=="kitchen") {
+      string textToSay="Going to the kitchen now";
+      robot_voice.say(textToSay.c_str(),"");
+      if ( setGoal(7.5, -7.5, 90, "map") ) robot_voice.say("Goal reached,"");
+      command="none";
+    }
+    else if (command=="bedroom") {
+      string textToSay="Going to the bedroom now";
+      robot_voice.say(textToSay.c_str(),"");
+      if ( setGoal(-3.5, -2.0, 270, "map") ) robot_voice.say("Goal reached,"");
+      command="none";
+    }
+    else if (command=="entrance") {
+      string textToSay="Going to the entrance now";
+      robot_voice.say(textToSay.c_str(),"");
+      if ( setGoal(-11.5, -17.5, 270, "map") ) robot_voice.say("Goal reached,"");
+      command="none";
+    }
+    else if (command=="forward") {
+      string textToSay="Moving one meter forward";
+      robot_voice.say(textToSay.c_str(),"");
+      if ( setGoal(1.0, 0.0, 1.0, "base_link") ) robot_voice.say("Goal reached,"");
+      command="none";
+    }
+    else if (command=="backward") {
+      string textToSay="Moving one meter backward";
+      robot_voice.say(textToSay.c_str(),"");
+      if ( setGoal(-1.0, 0.0, 1.0, "base_link") ) robot_voice.say("Goal reached,"");
+      command="none";
+    }
+    else if (command=="none") {
+      //Do nothing
+    }
+    else {
+      string textToSay="I could not understand the command";
+      robot_voice.say(textToSay.c_str(),"");
+      //sleepok(8, n);
+      command="none";
+    }
+
+
+    ros::spinOnce();
+    //loop_rate.sleep();
+  }
+  //ros::spin();
+  return 0;
+}
