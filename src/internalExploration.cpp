@@ -1,5 +1,7 @@
 #include <iostream>
 #include <deque>  //Double ended queues
+#include <algorithm>    // std::copy_if, std::distance
+#include <fstream>	//files
 
 #include <boost/geometry.hpp>
 #include <boost/geometry/geometries/point_xy.hpp>
@@ -10,8 +12,6 @@
 #include <boost/foreach.hpp>
 
 #include "opencv2/opencv.hpp"
-
-#include <fstream>	//files
 
 
 #define PI 3.14159265
@@ -33,6 +33,7 @@ struct poseType {
   double y;
   double theta;
   double flatArea;
+  int flatSurfaceSeen;
 };
 
 typedef vector<poseType> poseArrayType;
@@ -212,8 +213,19 @@ void drawOnePose(Mat map, double x, double y, double theta, boostPolygonType vis
 
 void drawPath(Mat map, poseArrayType poses, boostPolygonType visibilityCone, double minX=0, double minY=0, double maxX=0, double maxY=0, double resolution=1) {
   Mat mapBackup=map.clone();
+  
+  //Draw the first pose
+  int orientationLengthFirst=max( abs(maxX-minX), abs(maxY-minY) )/50;
+  drawPoint(mapBackup, poses[0].x, poses[0].y, minX, minY, maxX, maxY, resolution, Scalar(200,200,200), 6);
+  drawLine(mapBackup, poses[0].x, poses[0].y, poses[0].x+orientationLengthFirst*sin(poses[0].theta*PI/180), poses[0].y+orientationLengthFirst*cos(poses[0].theta*PI/180), minX, minY, maxX, maxY, resolution, Scalar(200,200,200), 2);
+  
   for (int i=1; i<poses.size(); i++) {
+    //Draw path
     drawLine(mapBackup, poses[i-1].x, poses[i-1].y, poses[i].x, poses[i].y, minX, minY, maxX, maxY, resolution, Scalar(200,200,200), 1);
+    //Draw pose
+    int orientationLength=max( abs(maxX-minX), abs(maxY-minY) )/50;
+    drawPoint(mapBackup, poses[i].x, poses[i].y, minX, minY, maxX, maxY, resolution, Scalar(200,200,200), 6);
+    drawLine(mapBackup, poses[i].x, poses[i].y, poses[i].x+orientationLength*sin(poses[i].theta*PI/180), poses[i].y+orientationLength*cos(poses[i].theta*PI/180), minX, minY, maxX, maxY, resolution, Scalar(200,200,200), 2);
   }
   
   Mat mapFlip;
@@ -250,6 +262,34 @@ void selectPath(poseArrayType &poses, double xInit, double yInit) {
   }
 }
 
+
+void selectPath2(vector <boostPolygonType> flatSurfacesinRoom, poseArrayType &poses, double xInit, double yInit) { 
+  //Order poses according the area of the flat surface
+  vector <double> areas;
+  vector <int> indexes;
+  for (int i=0; i<flatSurfacesinRoom.size(); i++) {
+    areas.push_back( area( flatSurfacesinRoom[i] ) );
+    indexes.push_back(i);
+  }
+  sort( indexes.begin(), indexes.end(), [&areas](int i1, int i2) {return areas[i1] > areas[i2];} ); //Using lambdas (C++11) for sorting with indexes
+  
+  //And make a path with all the poses of each flat surface seen
+  poseArrayType posesBackup=poses;
+  poses.clear();
+  for (int i=0; i<flatSurfacesinRoom.size(); i++) {
+    poseArrayType posesbySurface ( posesBackup.size() );
+    //std::copy_if (posesBackup.begin(), posesBackup.end(), back_inserter(posesbySurface), [](const poseType& pose){return (pose.flatSurfaceSeen==i);} ); //Copy only the analized flat surface
+    
+    //poseArrayType::iterator it = std::copy_if (posesBackup.begin(), posesBackup.end(), posesbySurface.begin(), [](poseType pose){return (pose.flatSurfaceSeen==i);} ); //Copy only the analized flat surface
+    //posesbySurface.resize(std::distance(posesbySurface.begin(),it));  // shrink container to new size
+    
+    selectPath(posesbySurface, xInit, yInit); //Find shortes path with the path method
+    xInit=posesbySurface.back().x; //The last point of the last path will be the first point of the new one
+    yInit=posesbySurface.back().y;
+    poses.insert( poses.end(), posesbySurface.begin(), posesbySurface.end() ); //Put togheter all the paths by flat surface
+  }
+}
+
 void filterCloseToObstacles(Mat obstacles, poseArrayType &poses, double minDistance, double minX=0, double minY=0, double maxX=0, double maxY=0, double resolution=1) {
   poseArrayType posesBackup=poses;
   poses.clear();
@@ -261,6 +301,13 @@ void filterCloseToObstacles(Mat obstacles, poseArrayType &poses, double minDista
   cout << "Deleted " << posesBackup.size()-poses.size() << " poses close to obstacles" << endl;
 }
 
+double angleDiff(double a1, double a2) {
+  double angle = fmod ( abs(a2- a1) , 360 );
+  if (angle > 180) 
+    return 360 - angle;
+  else
+    return angle;
+}
 
 void filterSimilarPoses(poseArrayType &poses, double minDistance, double minAngle) {
   //This method supposes poses sorted by flatArea desc
@@ -269,7 +316,8 @@ void filterSimilarPoses(poseArrayType &poses, double minDistance, double minAngl
   for (int i=0; i<posesBackup.size(); i++) {
     bool isClose=false;
     for (int j=0; j<poses.size(); j++) {
-      if ( abs(posesBackup[i].x-poses[j].x) < minDistance && abs(posesBackup[i].y-poses[j].y) < minDistance && abs(posesBackup[i].theta-poses[j].theta) < minAngle ) {
+      //if ( abs(posesBackup[i].x-poses[j].x) < minDistance && abs(posesBackup[i].y-poses[j].y) < minDistance && abs(posesBackup[i].theta-poses[j].theta) < minAngle ) {
+      if ( sqrt( pow(posesBackup[i].x-poses[j].x,2) + pow(posesBackup[i].y-poses[j].y,2) ) < minDistance && angleDiff(posesBackup[i].theta,poses[j].theta) < minAngle ) {
 	isClose=true;
 	break;
       }
@@ -320,6 +368,7 @@ void evaluatePoses(poseArrayType &poses, vector <boostPolygonType> flatSurfaces,
   }
   poses=posesBackup;
 }
+  
   
 
 void generatePoses(Mat map, poseArrayType &poses, int maxPoses, boostPolygonType visibilityCone, boostPolygonType space, double minX=0, double minY=0, double maxX=0, double maxY=0, double resolution=1) {

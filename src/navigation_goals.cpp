@@ -33,6 +33,7 @@ typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> MoveBaseCl
 
 string object="none";
 string ARNLPlanningStatus="none";
+int objectPersistence=0;
 bool objectFound=false;
 
 //Global odometry
@@ -41,12 +42,23 @@ double lastY=0;
 double lastTheta=0;
 double transDistance=0;
 double rotDistance=0;
-//clock_t executionTime=clock();
+int plannedPoses=0;
+int reachedPoses=0;
 high_resolution_clock::time_point executionTime = high_resolution_clock::now();
 
 void sleepok(int t, ros::NodeHandle &n) {
   if (n.ok()) sleep(t);
 }
+
+
+void sleepROS(int tSeconds) {
+  int timeSpaces=tSeconds*1000;
+  while ( --timeSpaces > 0 ) {
+  ros::spinOnce();
+  usleep(1000);
+  }
+}
+
 
 void textToSpeech(string speech, unsigned int counter, sound_play::SoundClient &sc, ros::NodeHandle &nh)
 {
@@ -194,7 +206,8 @@ void loadEnvironment(vector<locationNode> &roomList, MatVector &distancesTable, 
     getline(inputFileA, lineA); //This do not check if the file is incomplete or unstructured
     A=extractOrder(lineA, numRooms);
     //Fixed probabilities according to an exponential distribution with 8 rooms (but there are 10 in the file)
-    double exponentialProbabilities[] = { 0.55610, 0.24920, 0.10580, 0.04860, 0.02150, 0.01110, 0.00500, 0.00150, 0, 0 };
+    //double exponentialProbabilities[] = { 0.55610, 0.24920, 0.10580, 0.04860, 0.02150, 0.01110, 0.00500, 0.00150, 0, 0 }; //8 rooms
+    double exponentialProbabilities[] = { 0.5604, 0.2511, 0.1066, 0.0490, 0.0217, 0.0112, 0, 0, 0, 0 };   //6 rooms
     for (int j=0; j < numRooms; j++) {
       prob[i][j] = exponentialProbabilities[ A[j] ];
     }
@@ -299,7 +312,7 @@ bool setGoalARNL(ArClientBase *client, double x, double y, double theta=-1) {
   while ( ARNLPlanningStatus!="" ) {
     client->requestOnce("pathPlannerStatus");
     client->requestOnce("update");
-    if (ARNLPlanningStatus.substr(0,6)=="Failed") {
+    if (ARNLPlanningStatus!="Planning a path" && ARNLPlanningStatus!="Going to goal" && ARNLPlanningStatus!="none") {
       ARNLPlanningStatus="none";
       return false;
     }
@@ -311,17 +324,29 @@ bool setGoalARNL(ArClientBase *client, double x, double y, double theta=-1) {
 
 
 string getNameFromID(string ID) {
+  /*
+  if (ID == "3312175a69e13571594fa93843016063") return "aceitunas";
+  if (ID == "3312175a69e13571594fa9384302c4ae") return "arizona";
+  if (ID == "3312175a69e13571594fa93843040d2c") return "coca";
+  if (ID == "3312175a69e13571594fa93843055ce7") return "salsa Inglesa";
+  if (ID == "3312175a69e13571594fa93843068b5b") return "mayonesa";
+  if (ID == "3312175a69e13571594fa9384307ba15") return "mermelada";
+  if (ID == "3312175a69e13571594fa9384308f031") return "pure";
+  if (ID == "3312175a69e13571594fa938430a4f70") return "valentina";
+  if (ID == "3312175a69e13571594fa938430b7c0b") return "sangria";
+  if (ID == "3312175a69e13571594fa938430c9255") return "zucaritas";
+  */
+  if (ID == "3312175a69e13571594fa93843016063") return "aceitunas";
+  if (ID == "3312175a69e13571594fa9384302c4ae") return "arizona";
+  if (ID == "3312175a69e13571594fa93843040d2c") return "coke";
+  if (ID == "3312175a69e13571594fa93843055ce7") return "salsa Inglesa";
+  if (ID == "3312175a69e13571594fa93843068b5b") return "mayonesa";
+  if (ID == "3312175a69e13571594fa9384307ba15") return "mermelada";
+  if (ID == "3312175a69e13571594fa9384308f031") return "pure";
+  if (ID == "3312175a69e13571594fa938430a4f70") return "valentina";
+  if (ID == "3312175a69e13571594fa938430b7c0b") return "sangria";
+  if (ID == "3312175a69e13571594fa938430c9255") return "zucaritas";
   
-  if (ID == "3312175a69e13571594fa93843016063") return "Aceitunas";
-  if (ID == "3312175a69e13571594fa9384302c4ae") return "Arizona";
-  if (ID == "3312175a69e13571594fa93843040d2c") return "Coca";
-  if (ID == "3312175a69e13571594fa93843055ce7") return "Salsa Inglesa";
-  if (ID == "3312175a69e13571594fa93843068b5b") return "Mayonesa";
-  if (ID == "3312175a69e13571594fa9384307ba15") return "Mermelada";
-  if (ID == "3312175a69e13571594fa9384308f031") return "Pure";
-  if (ID == "3312175a69e13571594fa938430a4f70") return "Valentina";
-  if (ID == "3312175a69e13571594fa938430b7c0b") return "Sangria";
-  if (ID == "3312175a69e13571594fa938430c9255") return "Zucaritas";
   return "Unknow Object";
 }
 
@@ -332,27 +357,38 @@ void object_detector(const  object_recognition_msgs::RecognizedObjectArray& msg)
   bool detected_object_status=true;
   int imageObjectDetectedNSec=msg.header.stamp.toNSec();
   vector<string> object_id;
-  
+    
   if (objects_detected > 0) {
-    ROS_INFO("%d objects detected",objects_detected);
-    ROS_INFO("Recognizer Header seq: %d",msg.header.seq);
-    ROS_INFO("Recognizer Header time stamp secs: %f",msg.header.stamp.toSec());
-    ROS_INFO("Recognizer Header time stamp nsecs: %ld",msg.header.stamp.toNSec());
-    ROS_INFO("Recognizer Header frame: %s",msg.header.frame_id.c_str());
-
+    //ROS_INFO("%d objects detected",objects_detected);
+    //ROS_INFO("Recognizer Header seq: %d",msg.header.seq);
+    //ROS_INFO("Recognizer Header time stamp secs: %f",msg.header.stamp.toSec());
+    //ROS_INFO("Recognizer Header time stamp nsecs: %ld",msg.header.stamp.toNSec());
+    //ROS_INFO("Recognizer Header frame: %s",msg.header.frame_id.c_str());
+    bool localObjectSeen=false;
     for (int i=0; i<objects_detected; i++) {	
       object_id.push_back( msg.objects[i].type.key );
-      ROS_INFO("Object key: %s",object_id[i].c_str());
+      //ROS_INFO("Object key: %s",object_id[i].c_str());
+      ROS_INFO("Object name: %s",getNameFromID(object_id[i]).c_str());
       ROS_INFO("Confidence: %f",msg.objects[i].confidence);
       //int bd=msg.objects[i].bounding_contours.size();
       //ROS_INFO("Bounding contours: %d",bd);
-      ROS_INFO("Position X: %f",msg.objects[i].pose.pose.pose.position.x);
-      ROS_INFO("Position Y: %f",msg.objects[i].pose.pose.pose.position.y);
-      ROS_INFO("Position Z: %f",msg.objects[i].pose.pose.pose.position.z);
-      if ( getNameFromID(object_id[i]) == object ) objectFound=true;
+      //ROS_INFO("Position X: %f",msg.objects[i].pose.pose.pose.position.x);
+      //ROS_INFO("Position Y: %f",msg.objects[i].pose.pose.pose.position.y);
+      //ROS_INFO("Position Z: %f",msg.objects[i].pose.pose.pose.position.z);
+      //ROS_INFO("Object searched: %s",object.c_str());
+      if ( getNameFromID(object_id[i]) == object && msg.objects[i].confidence>0.90 ) { objectPersistence++; localObjectSeen=true;} //The object recognition saw the same object
+      if ( objectPersistence>3) {
+	objectFound=true;
+	cout  << "Found in recognizer" << endl;
+      }
     }
+    if (!localObjectSeen) objectPersistence=0;  
   }
-  else detected_object_status=false;
+  else {
+    detected_object_status=false;
+    //cout << "No object detected" << endl;
+    objectPersistence=0; 
+  }
 }
 
 
@@ -383,9 +419,9 @@ void handlePathPlannerStatus(ArNetPacket *packet)
   char buf[64];
   packet->bufToStr(buf, 63);
   string plannerStatus=buf;
-  cout << "Path planner status: " << plannerStatus << endl;
-  
+  //cout << "Path planner status: " << plannerStatus << endl;
   ARNLPlanningStatus=plannerStatus;
+  //sleepROS(0.1);
 }
 
 
@@ -408,11 +444,12 @@ void handleRobotUpdate(ArNetPacket* packet) {
   transDistance += sqrt( pow(x-lastX,2) + pow(y-lastY,2) );
   rotDistance += abs(lastTheta - theta );
   lastX = x; lastY = y; lastTheta = theta;
-  cout << "Traveled distance: " << transDistance << endl;
-  cout << "Turns made: " << rotDistance << endl;
+  //cout << "Traveled distance: " << transDistance << endl;
+  //cout << "Turns made: " << rotDistance << endl;
   duration<double> time_span = duration_cast<duration<double>>(high_resolution_clock::now() - executionTime);
-  cout << "Execution time: " << time_span.count() << " seconds" << endl;
+  //cout << "Execution time: " << time_span.count() << " seconds" << endl;
   //cout << "Execution time: " << ((double)(clock()-executionTime))/CLOCKS_PER_SEC << endl;
+  ros::spinOnce();
 }
 
 void resetOdometry(ArClientBase *client) {
@@ -503,31 +540,68 @@ void internalSearch(ArClientBase *client, string roomName, double xInit, double 
   int numPoses=2000;
   generatePoses(mapFree, poses, numPoses, visibilityCone, room[0], minX, minY, maxX, maxY, resolution);
   
-  //int maxPoses=100;
-  int maxPoses=numPoses*0.10;
+  /*
+  //Method 1. Select poses by room. NOTE: In rooms with flat surfaces with too much difference in their areas. Small flat surfaces tend to have no poses.
+  int maxPoses=numPoses*0.1; //A percentage of the poses (with the biggest seen area)
   evaluatePoses(poses, flatSurfacesinRoom, visibilityCone, maxPoses);
   
-  double obstacleDistance=300;  //Distance to be considered close to obstacles in milimeters
+  double obstacleDistance=250;  //Distance to be considered close to obstacles in milimeters
   filterCloseToObstacles(mapFree, poses, obstacleDistance, minX, minY, maxX, maxY, resolution);
   
   double closeDistance=1000;  //Distance to be considered close to other poses in milimeters
   double closeAngle=30;   //Angle to be considered close to other poses in degrees
   filterSimilarPoses(poses, closeDistance, closeAngle);
+  //End Method 1
+  */
+  
+  
+  //Method 2. Select poses by flat surfaces
+  int maxPoses=numPoses*0.1; //A percentage of the poses (with the biggest seen area)
+  poseArrayType posesTMP=poses;
+  poses.clear();
+  for (int i=0; i<flatSurfacesinRoom.size(); i++) {
+    poseArrayType posesbySurface = posesTMP;
+    vector <boostPolygonType> oneFlatSurfacesinRoom;
+    oneFlatSurfacesinRoom.push_back( flatSurfacesinRoom[i] );
+    evaluatePoses(posesbySurface, oneFlatSurfacesinRoom, visibilityCone, maxPoses);
+    
+    double obstacleDistance=250;  //Distance to be considered close to obstacles in milimeters
+    filterCloseToObstacles(mapFree, posesbySurface, obstacleDistance, minX, minY, maxX, maxY, resolution);
+    
+    double closeDistance=1400;  //Distance to be considered close to other poses in milimeters
+    double closeAngle=30;   //Angle to be considered close to other poses in degrees
+    filterSimilarPoses(posesbySurface, closeDistance, closeAngle);
+    poses.insert( poses.end(), posesbySurface.begin(), posesbySurface.end() );
+    cout << "Flat " << i << " with " << posesbySurface.size() << endl;
+  }
+  double closeDistance=1400;  //Distance to be considered close to other poses in milimeters
+  double closeAngle=30;   //Angle to be considered close to other poses in degrees
+  filterSimilarPoses(poses, closeDistance, closeAngle);
+  //End Method 2
+  
+  
   
   cout << poses.size() << " poses to be used" << endl;
   //drawPoses(mapFree, poses, visibilityCone, minX, minY, maxX, maxY, resolution);
-  
+  plannedPoses+=poses.size();
   selectPath(poses, xInit, yInit);
   //drawPath(mapFree, poses, visibilityCone, minX, minY, maxX, maxY, resolution);
   
   for (int i=0; i<poses.size(); i++) {
     double thetaForRobot=fmod(450-poses[i].theta,360); //Adjusting for counterclockwise and zero displacement for robot
-    setGoalARNL(client, poses[i].x, poses[i].y, thetaForRobot);
-    
-    cout << "Visually searching object at pose (" << poses[i].x << "," << poses[i].y << "," << poses[i].theta << ")" << endl;
-    
+    bool reachedPose=setGoalARNL(client, poses[i].x, poses[i].y, thetaForRobot);
+    if (reachedPose) {
+      reachedPoses++;
+      cout << "I am ready on the pose (" << poses[i].x << "," << poses[i].y << "," << poses[i].theta << ")" << endl;
+    }
+    else {
+      cout << "I could not reach the pose (" << poses[i].x << "," << poses[i].y << "," << poses[i].theta << ")" << endl;
+    }
+    cout << "Visually searching object for 5 seconds" << endl;
+    sleepROS(5); //Wait for recognition
     //drawOnePose(mapFree, poses[i].x , poses[i].y , poses[i].theta, visibilityCone, minX, minY, maxX, maxY, resolution);
     if (objectFound) return;
+    ros::spinOnce();
   }
   
 }
@@ -608,8 +682,12 @@ int main(int argc, char** argv){
   cout << "Entering cycle" << endl;
   
   
-  object="blanket";  //TODO%%%%%%%%%%%%%%%%%%%%$$$$$$$$$$$$$$$$$$$$########################
-
+  object="coke";  //TODO%%%%%%%%%%%%%%%%%%%%$$$$$$$$$$$$$$$$$$$$########################
+/*
+  while (ros::ok()) {
+    ros::spinOnce();
+  }
+  */
   while (ros::ok()) {
     objectFound=false;
     robot_voice.say("I am listening you!. Please tell me an object.","");
@@ -619,17 +697,14 @@ int main(int argc, char** argv){
     cout << "Waiting for object to search for" << endl;
     while (object=="none") {ros::spinOnce();} //Wait for an object from user topic /voice
     
-    //clock_t initTime;
-    //initTime=clock();
     high_resolution_clock::time_point initTime = high_resolution_clock::now();
     resetOdometry(&client);
     
     cout << "Estimating probabilities" << endl;
     estimateProbabilities(locationList, object, probabilities, rooms, objects);
-    object="none";
     
     cout << "Generating exploration order" << endl;
-    locationNode presentPose; presentPose.roomCenter.x = lastX; presentPose.roomCenter.y = lastY;
+    locationNode presentPose; presentPose.roomCenter.x = lastX; presentPose.roomCenter.y = lastY; presentPose.roomName = "Start";
     locationList.insert(locationList.begin(), presentPose);
     startingNode=0;
     generateRouteExpectedDistanceSimple(locationList, distancesTable, startingNode);
@@ -642,12 +717,12 @@ int main(int argc, char** argv){
     cout << "Exploring" << endl;
     for (int i=1; i<locationList.size(); i++) {
       
-      cout << "Room priority: " << i << endl;
-      cout << "Room: " << locationList[i].roomName << endl;
-      cout << "Pos X: " << locationList[i].roomCenter.x << endl;
-      cout << "Pos Y: " << locationList[i].roomCenter.y << endl;
-      cout << "Pos Area: " << locationList[i].area << endl;
-      cout << "Probability: " << locationList[i].objectProbability << endl;
+      //cout << "Room priority: " << i << endl;
+      //cout << "Room: " << locationList[i].roomName << endl;
+      //cout << "Pos X: " << locationList[i].roomCenter.x << endl;
+      //cout << "Pos Y: " << locationList[i].roomCenter.y << endl;
+      //cout << "Pos Area: " << locationList[i].area << endl;
+      //cout << "Probability: " << locationList[i].objectProbability << endl;
       
       
       string voiceMsg="Going to search in the " + locationList[i].roomName;
@@ -662,25 +737,30 @@ int main(int argc, char** argv){
 	voiceMsg = "I could not reach the " + locationList[i].roomName;
       }
       robot_voice.say(voiceMsg.c_str(),"");
+      
+      //Statistics for room
+      
       if (objectFound) {
 	duration<double> time_span = duration_cast<duration<double>>(high_resolution_clock::now() - initTime);
 	cout << "Objet found in " << locationList[i].roomName << " in " << time_span.count() << " seconds" << endl;
-	//cout << "Objet found in " << locationList[i].roomName << " in " << ((double)(clock()-initTime))/CLOCKS_PER_SEC << " seconds" << endl;
 	cout << "Traveled distance " << transDistance << " with " << rotDistance << " degrees turned" << endl;
+	cout << plannedPoses << " poses were planned and " << reachedPoses << " were reached" << endl;
 	break;
       }
+      ros::spinOnce();
     }
     
     if (!objectFound) {
       duration<double> time_span = duration_cast<duration<double>>(high_resolution_clock::now() - initTime);
       cout << "Objet not found. Searching last " << time_span.count() << " seconds" << endl;
-      //cout << "Objet not found. Searching last " << ((double)(clock()-initTime))/CLOCKS_PER_SEC << " seconds" << endl;
       cout << "Traveled distance " << transDistance << " with " << rotDistance << " degrees turned" << endl;
+      cout << plannedPoses << " poses were planned and " << reachedPoses << " were reached" << endl;
     }
 
 
     ros::spinOnce();
     //loop_rate.sleep();
+    object="none"; //Reset the searched object
   }
   
   //ros::spin();
