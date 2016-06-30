@@ -104,8 +104,8 @@ include_directories(
 
 # ARNL include directories
 include_directories(include /home/izquierdocr/catkin_ws/src/object_search/Arnl64/include/ArNetworking)
-include_directories(include /home/izquierdocr/catkin_ws/src/object_search/Arnl64//include/Aria)
-include_directories(include /home/izquierdocr/catkin_ws/src/object_search/Arnl64//include)
+include_directories(include /home/izquierdocr/catkin_ws/src/object_search/Arnl64/include/Aria)
+include_directories(include /home/izquierdocr/catkin_ws/src/object_search/Arnl64/include)
 #include_directories(include /usr/local/Arnl/include/ArNetworking)
 #include_directories(include /usr/local/Arnl/include/Aria)
 #include_directories(include /usr/local/Arnl/include)
