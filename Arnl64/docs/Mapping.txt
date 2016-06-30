@@ -1,0 +1,247 @@
+This file describes how to make a map with ARNL and a SICK laser rangefinder.  
+If you only have SONARNL, see SonarMapping.txt for directions.
+
+Ways to start mapping
+=====================
+
+The first step in automatically creating a map is to scan the environment using
+the robot and SICK laser. This results in a scan log file which can be loaded into
+the Mapper3 application for processing.
+
+You can do this two ways.
+
+The first is to run the arnlServer example program, connect to that
+server with MobileEyes, and select from the Tools menu 'Map Creation'
+then 'Start Mapping'.  Provide a name for the scan log. Then use a
+joystick or MobileEyes to drive the robot around the environment. When
+done, stop mapping by choosing 'Stop Mapping' from the 'Map Creation'
+submenu of the 'Tools' menu. See below for tips on making a good map.
+Be sure to connect the joystick before starting arnlServer.
+
+The second way is to use the sickLogger program instead of arnlServer.
+sickLogger will record more data (it captures laser readings every 1/2
+degree rather then 1 degree resolution) which can result in a higher precision
+or more accurate map.  sickLogger takes command line options to configure
+behavior.  If a name for the laser scan log file is not provided, a default
+filename of "1scans.2d" is used. Use a filename suffix of ".2d".
+
+After the laser finishes initializing and the sonar is turned off, you
+can start driving the robot with a joystick. Be sure to connect the joystick
+before starting sickLogger. When finished, reset the robot or exit 
+sickLogger by pressing Ctrl-C or Escape.
+
+In most cases the lower resolution of arnlServer results in a good map, and 
+is faster to process, but sickLogger is available if you need more options.
+
+Driving the robot to make a map
+===============================
+
+There are three ways you can drive the robot to make a map
+
+Attach an analog joystick to the joystick port on the back of the robot, not on the
+computer.  If you have a newer yellow analog joystick all you need to
+do is plug it in.  If you have an older analog joystick you'll need to
+calibrate the joystick (To calibrate: Leaving the stick centered,
+press the trigger button for a second or so, then release it. Now
+rotate the stick around its extremes two or three times, holding it in
+each corner for a second or two.) Drive the robot by holding the 
+trigger and moving the joystick.  To make goals you can press the 
+top button on the old analog joystick (this requires at least AROS1_5) 
+or the 'goal' button on the new analog joystick.  With the new 
+analog joystick you may also be able to use the throttle to control 
+your speed.
+
+You could also attach a USB joystick attached to robot computer (this
+depends on having a robot equipped with an accessible USB port; this 
+is usually located on the back of the SICK laser bracket). To
+drive the robot just press the trigger, "A", or other primary button 
+and then move the joystick how you wish the robot to move.  You can 
+use the throttle/speed control on the joystick to control the maximum 
+(and hence scaled) speed at which the robot drives.  To make a goal 
+you can press any of the other buttons on the joystick itself (button 
+2, 3, or 4).
+
+If using sickLogger, you can also use the arrow keys, and press the 'G'
+key to place a goal.
+
+
+How to map an environment 
+=========================
+
+This section gives some general advice on how to drive the robot
+so as to create a good map.  Before you start mapping it is a good 
+idea to develop an exploration strategy for driving your robot around.  
+The exploration strategy depends on your environment.
+
+Environment without cycles
+
+If your environment does not contain any cycles or loops in the space, 
+e.g. an office environment with one corridor and connecting rooms, then the
+exploration strategy can be simple.  Just joystick the robot into each
+room along the corridor.  However, if your robot is equipped with only
+one 180 degree scanner then the mapping algorithm might still detect
+cycles because of the different viewing angles when going into
+opposite directions in a room or corridor.  Therefore you still might
+need to follow the advise for environments containing cycles.
+
+Environment with cycles
+
+Usually most environments contain cycles/loops and this software is
+especially made for such places.  However, there are several
+assumptions and restrictions the mapping algorithm assumes.
+
+* Loops are only closed once
+
+One assumption is that after closing a loop the resulting map does not
+have to be changed anymore along the loop and the poses of all scans
+belonging to the loop are fixed.  This means that going along the loop
+another time does not change the form of the loop anymore.
+
+* Loops have to be closed when they are closed
+
+Furthermore, there is the limitation that if the algorithm is not able
+to close a loop at one time then it will most probably not be able to
+close it later when the robot comes to the same area again.  This
+means that when you drive the robot along a loop back to a previously
+visited place you should make sure that the robot recognizes this
+loop.  You might need to continue driving the robot in the already
+visited area until it detects the loop.  Only after it detected and
+closed a loop, you can drive the robot into new and unexplored area.
+
+* Small loops first (usually)
+
+Usually it is better to map an environment by closing smaller loops
+before going for larger ones as this in general reduces the search
+space for loop detection.  However, this depends on the environment
+and in some cases where there are small loops along a large cycle, it
+might be better to close the large one first because otherwise you
+might violate one of the following points.
+
+* No loop just a few meters before another loop
+
+After closing a loop or moving in already mapped terrain
+the robot should go several meters into unexplored area before 
+it closes another loop.  The reason for this is that after 
+closing the loop or moving in already mapped terrain the 
+search space for loop detection is reset and all scans 
+belonging to previously closed loops are fixed, i.e. they 
+can't change their pose anymore.
+
+* No loops during exploration of new terrain
+
+This is similar to the previous point.  After a loop is closed
+the search space for loop detection is reset and the poses
+of scans along the loop are fixed.  This might be disadvantageous
+for example when there are several small loops along a large cycle.
+
+
+The above hints should give you a general feeling about how
+the algorithm can be employed in your environment.  If you have
+a rough topological map of the environment then this should
+help a lot in developing an exploration path that meets the 
+above criteria.  
+
+A different approach is to just try and get your own experience
+in how the mapping algorithm performs.  Remember to enable the
+logging feature of the mapping software so you can play back
+and analyze the mapping process later.
+
+
+Converting the .2d to a map file
+================================
+
+The final steps in producing a robot map file are to process the laser
+scan log (.2d) file in the Mapper3 application, and to finish the
+map by adding logical objects like goals, forbidden lines (boundaries),
+etc.
+
+To load the scan log file into Mapper3, first copy the .2d file
+from the robot (e.g. using secure FTP (sftp) or secure copy (scp)).
+Use 'Open' in Mapper3's File menu, and choose the .2d file.
+
+Alternatively, if arnlServer is running on the robot's onboard computer
+in Linux, you can download the .2d file directly into Mapper3 by choosing
+'Open from robot' in the File menu, entering the robot's network host
+name or IP address, and choosing the file.  Later, you can also save
+the finished map file to the robot computer and load it in arnlServer using
+'Save to Robot'.  Network file transfer is not implemented in the Windows 
+version of ARNL.  
+
+One you start load the scan (or start laser mapper with a scan)
+Mapper3 will begin processing the .2d and will draw progress as it is
+tracing the scan log and making the map. It then does further processing
+to register and clean up the map.  While doing all this processing,
+an animated moving robot icon is shown in the right side of the status
+bar on the bottom of the Mapper3 window.  When it finishes making the 
+map the 'Finish' button will become available.   Click the 'Finish'
+button to save the new map. The new map will now be open in Mapper3
+for further editing of goals, home points, forbidden lines and areas,
+etc., and erasing of remaining points which do not represent permanent
+obstacles (but are the result of people or temporary objects detected
+during the scan). One good practice is to draw forbidden lines that surround
+the entire map; this will put bounds on the total space that ARNL
+needs to search when path planning.
+
+If you have a docking (automatic recharging) station, place a dock object 
+approximately 1 meter to 1.5 meters away from the dock, with the heading
+of the object pointed directly at the triangular target. ARNL's docking
+mode will first drive to this goal, then align with the triangular target
+and slowly drive to the changing position.
+
+When done, save the map, and copy it to the robot computer. Place the map file
+in the examples subdirectory of Arnl to allow the example programs
+to easily find it. If your robot computer is running Linux and arnlServer,
+you can use File->Save on Robot as mentioned above to upload the map.
+Or use a tool such as WinSCP or sftp to upload the file.
+
+You can change maps at run time by connecting to the server with MobileEyes,
+and entering the new name as the value of the Map parameter in the Files
+section of the Robot Configuration dialog.
+
+The underlying mapping technology of Mapper3 is from ScanStudio
+which you can find in the older LaserMapping package (along with a
+description of how to use it).  We have licensed this fine technology
+from its creator and author Steffen Gutmann.  If you need help with
+ScanStudio contact support@mobilerobots.com. 
+
+
+
+Testing and Using the Map
+=========================
+
+Now it is time to try the map with ARNL. 
+
+Run arnlServer on the robot's onboard computer.
+
+On any computer with network access to the robot, run MobileEyes, and enter the
+address of the robot's onboard computer for Server.  Leave the User Name and Password
+empty.
+
+Choose Tools->Robot Configuration menu.  Choose the Files section.   Set 
+the Map parameter to your map file (use the [...] button, or enter 
+the name or path to the map file).
+
+The map should load into MobileEyes.  Click the "Fit to Window" button in
+the toolbar to see the whole map.
+
+Before ARNL can navigate automatically, the robot must be correctly localized,
+so you must tell it the initial position of the robot. Choose the Tools->Robot
+Tools->Localize to Point menu option.  Find the location in the map that
+corresponds to where the robot actually is in your environment. Click at this
+spot and hold the mouse button. Drag the mouse in the direction that the robot
+is facing, then release the mouse.  ARNL will use this position to do an initial 
+location; it does extra processing at this initial location which may take a few
+minutes.   Once localized, you can hold the Control key and click a goal
+position in the map.  
+
+More tips and information about navigation can be found in the ARNL developer
+reference manual and on the support wiki:
+
+  http://robots.mobilerobots.com/wiki/ARNL_Path_Planning_and_Navigation
+  http://robots.mobilerobots.com/wiki/ARNL_Localization
+
+Path planning and localization parameters can be adjusted in the Robot Configuration window 
+in the path planning and localization sections.
+
+  
+

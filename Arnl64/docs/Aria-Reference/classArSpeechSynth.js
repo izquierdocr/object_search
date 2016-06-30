@@ -1,0 +1,26 @@
+var classArSpeechSynth =
+[
+    [ "ArSpeechSynth", "classArSpeechSynth.html#aed33372eb96b4daefc9fb8064a2c64ff", null ],
+    [ "~ArSpeechSynth", "classArSpeechSynth.html#ae4840dda2cc8f5ddad7797e4eb860974", null ],
+    [ "addToConfig", "classArSpeechSynth.html#af45c967de97b07ea91191bf52dfefafd", null ],
+    [ "getAudioSampleRate", "classArSpeechSynth.html#acc90ac303f0610847ea4833ef7448afe", null ],
+    [ "getCurrentVoiceName", "classArSpeechSynth.html#a6487e0f0b83bff63657dd27f78cf327a", null ],
+    [ "getInitCallback", "classArSpeechSynth.html#a0e64592e4782920117f279cd9c3adb3d", null ],
+    [ "getInterruptCallback", "classArSpeechSynth.html#a295d2ec12e078917e43881c5405ce961", null ],
+    [ "getSpeakCallback", "classArSpeechSynth.html#a9c99b3fa1e7a360024d253c2a01f590c", null ],
+    [ "getVoiceNames", "classArSpeechSynth.html#af4ebae5c9311f381ea502e0b905083ce", null ],
+    [ "init", "classArSpeechSynth.html#af2fb89af85f43c9d4d91b32418f3eda2", null ],
+    [ "interrupt", "classArSpeechSynth.html#aca546b1f881d1ad49a96a5d0a2bd2257", null ],
+    [ "lock", "classArSpeechSynth.html#a613666ee480d0e5a32289cbb44df7a64", null ],
+    [ "setAudioCallback", "classArSpeechSynth.html#a26649f34e057c649a414ab9290e57981", null ],
+    [ "setAudioSampleRate", "classArSpeechSynth.html#a66243ab7410be9951195931b1f6e2c20", null ],
+    [ "setVoice", "classArSpeechSynth.html#a915b0cb3d5a5bc2de3e249b942d128d1", null ],
+    [ "speak", "classArSpeechSynth.html#a9fd8878d738fac357e87f286e6484732", null ],
+    [ "speak", "classArSpeechSynth.html#a02c561c12d5a9742eb47a17be65f70b7", null ],
+    [ "speakf", "classArSpeechSynth.html#af17a40849de4d8a9a6c70687cc7388f4", null ],
+    [ "unlock", "classArSpeechSynth.html#ae72f5aa9cf0a46d133ff1bd195e058b5", null ],
+    [ "myAudioPlaybackCB", "classArSpeechSynth.html#a1037bdf94b4d8f0f25cdd25b8e586499", null ],
+    [ "myInitCB", "classArSpeechSynth.html#a1ebb4676971cd79042f464c71b3b5679", null ],
+    [ "myInterruptCB", "classArSpeechSynth.html#a4e3b0aec2936512d5a6a8deae56a3646", null ],
+    [ "mySpeakCB", "classArSpeechSynth.html#a1d0480fd25e3c2bafce9e98a6162752e", null ]
+];

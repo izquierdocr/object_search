@@ -1,0 +1,516 @@
+
+Version 1.9.0
+November 10, 2014
+-------------------------
+
+Includes ARIA 2.9.0, which includes improved MTX (Pioneer LX) support and many
+other changes. See Aria Changes.txt file for details. In particular, better
+parameters are included for Pioneer LX in params/pioneer-lx.p and as
+built-in defaults to ARIA.   
+
+Default parameters have been set in the "Teleop setting" section of 
+the ARNL application parameters (params/arnl.p and params/default-arnl.p).
+These parameters are used in manual Drive mode in ARNL applications.
+These can be changed in the parameter file or via MobileEyes.
+
+Includes a major improvement in localization. Localization could 
+previously be delayed too long in some situations (during navigation).
+
+Fixed a possible crash in path following.
+
+Version 1.8.1
+-------------------------
+
+Includes ARIA 2.8.1 which includes fixes and improvements including:
+
+* A bug was fixed in ArLaserLogger that caused a crash when starting a
+  new map scan.
+* Pioneer LX sonar was fixed. A new version of pioneer-lx.p parameter file is
+  included.
+* See the ARIA Changes.txt file for full list of changes in ARIA.
+* Potential crashing or data corruption bug in path smoothing in
+  ArPathPlanningTask was fixed
+
+
+Version 1.8.0
+August 15, 2013
+-------------------------
+
+* BaseARNL includes ARIA 2.8.0 which adds support for LX/MTX and other changes.
+* ARNL can now dock a Pioneer LX to its dock
+* arnlServer, sonarnlServer and mogsServer now include TourGoalsInList "custom" command, 
+  and show path planning window in MobileEyes by default, as well as some other minor changes.
+* arnlServer, sonarnlServer and mogsServer include an example of a small class
+  which monitors the state of the robot, sets some (but not all possible) wheel
+  light modes on the Pioneer LX, and provides a way for users to re-enable
+  motors via MobileEyes if they become disabled (e.g. E-Stop button).
+* arnlServer, sonarnlServer and mogsServer now use ArPTZConnect to connect to 
+  configured PTZ devices rather than supporting only VCC4 and RVision in ad-hoc
+  manner.
+
+Version 1.7.5.2
+August 3, 2012
+-------------------------
+
+Includes ARIA 2.7.5.2, which fixes a bug in configuring LMS-1xx start/end
+angles.
+
+
+Version 1.7.5.1
+July 13, 2012
+-------------------------
+
+Fixed bug in map scan (.2d file) generation in which the map origin GPS position
+was not stored in the .2d file (unless MOGS had previously been initialized.)
+
+Contains ARIA with a fix for ArRVisionPTZ, which now defaults to automatically
+connecting to the RVision PTZ camera over serial port COM3.  In addition,
+mogsServer.cpp now uses ArRVisionPTZ to connect to an RVision camera rather 
+than ArVCC4 for Canon VCC (indoor) camera.
+
+Version 1.7.5
+June 12, 2012
+-------------------------
+
+Contains ARIA 2.7.5, which provides a bug fix in connection to an LMS-1xx laser rangefinder
+as well as other fixes and improvements.
+
+See the ARIA 2.7.5 Changes.txt file for more information.
+
+
+Version 1.7.4
+March 19, 2012
+-------------------------
+
+Contains ARIA 2.7.4, which contains support for new laser rangefinders. See ARIA
+ 2.7.4 Changes.txt and other documentation.
+ 
+ Includes Visual Studio 2010 support.
+ 
+
+Version 1.7.3
+September  8, 2011
+-------------------------
+
+Contains ARIA 2.7.3, which contains a bug fix related to use of SICK LMS100/111 laser.
+
+ARNL contains a new sickLogger.cpp example program with a fix
+
+Version 1.7.2
+November 17, 2009
+-------------------------
+
+Contains ARIA 2.7.2, which supports Seekur Jr. and SICK LMS100 laser.
+
+
+Version 1.7.1
+September  9, 2009
+-------------------------
+
+Bug fix (Windows only):
+
+Uses and contains ARIA 2.7.1, which fixes a bug that would result in
+ArLMS2xx sometimes failing to establish a connection to
+the laser. (Serial port would open at initialization, causing 
+laser to power on on Pioneer robots; if a program did not connect
+to the laser until much later, then the SICK laser would not initialize
+correctly and eventually time out.)
+
+Also fixes a bug connecting to an URG laser.
+
+
+Version 1.7.0
+April 30, 2009
+-------------------------
+
+IMPORTANT NOTE:
+
+This release includes a major change in the architecture of ARNL.  Instead of a
+single library (either libArnl or libSonArnl) being provided, ARNL has been
+split into a base library that includes common utilities and the path planning
+features, plus separate libraries each containing a localization method. There
+are currently three localization libraries available to customers: Arnl (laser
+localization), SonArnl (sonar localization) and MOGS (GPS
+positioning/localization).
+
+Some changes to the existing laser and sonar localization classes include:
+    * Parameters for all localization methods, and path planning, are now stored
+      in the arnl.p file. sonarnl.p is no longer used.  Each localization
+      library has its own section within arnl.p.
+    * Instead only one laser or sonar localization object allowed, multiple 
+      localization task objects with different sensors can now optionally be handled and 
+      merged into one pose. This is done using weighted averages of the estimates 
+      from the different localizations. The weights are related to the uncertainity 
+      of the estimates.
+    * The actual merging of the localization information is done by
+      ArLocalizationManager. This is where the robot is "moveTo" after the
+      merge. This is a new thread looping through at 10 times a second.
+    * If you only want to use one localization method, you can only create a
+      localization task object, as before, ArLocalizationManager is not needed
+      in this case.
+    * The reflector localization has been reworked to correctly incorporate
+      the last localized encoder pose.
+    * The MCL localization is merged with the reflector localization if the
+      reflectors and enabled. The resulting estimate is held in memory and the
+      moveTo is eliminated.
+    * The reflector data from the ArRobotAndLaser contains the number of actual
+      dots seen per reflector in addition to its centers. This allows us to
+      eliminate reflectors with one dot which gets caught at the average on
+      corners. This used to cause wild jumps in the kalman pose from reflectors.
+    * The localization manager queries the different localizations on their
+      estimate using their common findLocalizationMeanVar() function.
+    * Redid the forward kinematics for all the motion in all the kalmans involved.
+    * Added drawing functions to see the mean and variance of any localization.
+    * Made ArLocalizationTask and ArSonarLocalization task inherit from
+      a parent class ArBaseLocalizationTask
+    * Made ArSonarLocalizationTask::getState return LocalizationState
+      instead of SonarLocalizationState (to go with above change)
+
+Other changes:
+  * Java wrapper libraries are now in packages with the following names:
+    com.mobilerobots.BaseArnl for Base, com.mobilerobots.Arnl for ARNL and 
+    com.mobilerobots.SonArnl for SONARNL, and com.mobilerobots.MOGS for MOGS.  
+    Similarly, ARIA and ArNetworking are now in com.mobilerobots.Aria
+    and com.mobilerobots.ArNetworking packages.  Programs using the Java 
+    wrapper library must now use "import" statements to access the ARNL, 
+    ARIA and ArNetworking package namespaces, e.g.:
+      import com.mobilerobots.Aria.*;
+      import com.mobilerobots.ArNetworking.*;
+      import com.mobilerobots.BaseArnl.*;
+      import com.mobilerobots.Arnl.*;
+  * MultiRobot now has an option for robots to still send their paths
+    when they are stopped, so that with many robots the lower priority
+    ones can sort things out among themselves better
+  * Bug fixed in ArPathPlanningTask::getPathFromTo() (double unlock of map)
+  * The PlanEveryTime option has been removed from configuration. 
+  * Final goal approach movement does more checking to determine whether any
+    obstacles may violate the front and side clearance and padding parameters.
+  * Changes to make ArPathPlanningTask and ArLocalizationTask work with any range
+    device and any laser respectively, not just SICK lasers. 
+  * A new parameter has been added, CheckInsideRobotRadius. If true (default),
+    ARNL will now not move the robot if any obstacles are detected within the 
+    radius of the robot body, i.e. if the robot could hit the obstacle by rotating. 
+
+
+ARNL 1.5.1
+February 19, 2007
+------------------------
+
+Version built with ARIA 2.5.1
+
+
+ARNL 1.5.0
+December 1, 2006
+-------------------------
+
+
+**************
+Important Note
+**************
+
+It is _VERY_ important to note that this version of ARNL drives and
+path plans very differently (and much better!) than older versions,
+but that you may need to adjust some parameters to get this to happen.
+If you use old parameters the path planning may actually be worse but
+will at least be much much slower.
+
+The new version follows the path much more closely than older
+versions.  This version uses all of the movement parameters to
+determine how fast it needs to go at each point in the path.  This
+means it uses the rotVelMax, rotAccel, rotDecel, transAccel, and
+transDecel to see how fast it can go around a corner, and when it has
+to start decelerating to make the turn.  
+
+You can adjust the 'Driving*' parameters in the 'Path Planning
+settings' section, that will change the parameters in such a way that
+they will only apply when ARNL is path planning (so it won't affect
+teleop, or other driving you do with the robot).  This involves
+sending those commands down to the robot whenever the path planning
+takes over, so if you aren't connected directly from the computer this
+might cause some problems.  You can set these same parameters in the
+new 'Robot config' parameter section and they will only be sent down
+once, but they will apply to all driving the robot does.  If you leave
+those parameters at their defaults of 0 the value used comes from the
+firmware.  If you want to adjust those or see what that is you can use
+the configuration program for the microcontroller (ARCOScf, AROScf,
+p2oscf, etc).
+
+Some values we've used are a rotVelMax of 250, rotAccel of 300,
+rotDecel of 300, transAccel of 600, transDecel of 600.  This isn't
+appropriate for all robots or situations, but should give you an idea
+of the range of values, and that the higher you set them the better
+and faster ARNL will drive.  You should obviously find values
+appropriate to your robot, your robot's payload, your robot's
+environment, your robot's environment, and your robot's task.  Note
+that for some of these you may need to change the *Top value with the
+configuration program for the microcontroller (some old robots shipped
+with low Top values).  Also note that you that the gyros that we use
+will only give accurate readings until 300 degrees/sec, so your
+rotVelMax should never go over that value, and probably shouldn't come
+close.  It is okay if the rotAccel or rotDecel is higher.
+
+If you are using ARCOS you should get the latest version (1.9), since
+there was a bug in previous versions where rotDecel and rotAccel (or
+transAccel and transDecel) sent in the same 5 millisecond period would
+cause the first one to be overwritten which causes problems
+(especially since the software's idea of how the robot was driving
+didn't match the robot's idea).
+
+
+  * Changes and fixes to the DWA code makes the robot weigh an objective 
+    based on Match, Velocity and Distance (to collision), instead of Heading,
+    Velocity and Distance. The match function finds the (vel, rotvel) 
+    combination that best matches the path segment computed by the local
+    path planning. This has dramatically improved the tracking of the 
+    desired path by the robot and almost eliminated the oscillations about
+    the path that used to happen when the robot path changed direction
+    at high speed. It now also checks to see if the curvature of the path
+    causes the required rotational accels and decels to exceed the robot
+    limits, in which case it reduces the velocity. Earlier check only 
+    check the rotational velocity limits for the curved paths. 
+    NOTE, this change may require changes to robot motion parameters to
+    achieve good performance (see above)
+
+  * Changed the default linear velocity increments being searched from 1 to
+    3. Also made the path match distance small enough so that the robot 
+    behaved well in crowded and open spaces.
+
+  * Fixed the problem with premature goal "end move" triggering based on distance 
+    instead of making sure a straight collision free path existed before 
+    switching to straight line encoder based "end move".
+
+  * Reduced flipping of the local path because the bounding box skirted
+    obstacles and would expand and contract between cycles. Now the bounding
+    box also envelopes the closest obstacle on its edges. Also marked the
+    old path in the map to cost less during the find path in the current
+    plan. 
+
+  * Replaced parameter FreeSpacing with PlanFreeSpace which will measure the distance
+    from the side of the robot instead of the center.
+
+  * The lookahead and the related local planning area is not dependant on
+    the maximum velocity anymore. It is still dependent on the current 
+    linear velocity.
+
+  * Added mutex locks to avoid deadlocks. This also fixed the problem
+    with the getState() functions returning the right state of the path
+    planning.
+ 
+  * Added functionality to include ResistanceAreas and Lines in the map.
+    These areas cause the path planning to cost more when traversing them.
+    This allows the user to nudge the robot around areas without
+    making the area forbidden.
+  
+  * The functionality that enables the robot to stop at a distance of 
+    goalOccupiedFailDistance from the goal if the goal is occupied 
+    works now correctly.
+
+  * The global replanning path works better when the local path is blocked.
+
+  * Fixed the problem with the local path spliced into the main path causing
+    spikes in the path.
+
+Known Bugs:
+ 
+  * The Python and Java wrappers can use an incorrect directory when loading
+    parameters and map files: if it tries to use the ARIA installation directory
+    (/usr/local/Aria on Linux, for example), as a work-around, you can set
+    the ARIA environment variable to ARNL's installation directory (e.g.
+    /usr/local/Arnl on Linux).
+
+Enhancements:
+
+  * New networking features allow multiple robots to share position and path
+    information: ArServerHandlerMultiRobot to communicate through a central 
+    server, or ArServerHandlerMultiRobotPeer for when a central server 
+    isn't being used... these allows multiple robots to avoid each other
+  * Changed "ArServerHandleLocalization" to "ArServerHandlerLocalization"
+    but made a typedef from the old name to the new (old name was a typo)
+  * Made ArServerHandlerLocalization so that it would tell MobileSim
+    to relocate the robot to the point of localization, you can turn
+    this off with arguments in the constructor
+  * Made new class ArSimMapSwitcher that will switch the map in the
+    simulator to the map ARNL is using, this is in guiServer but
+    commented out.
+  * ARNL's guiServer is now using new ArSonarAutoDisabler from Aria so
+    that when the robot's stopped it won't ping
+  * Made Patrolbot's dock better (carried change over to Simulated
+    docking too, it shouldn't affect pioneers or powerbots)
+  * Made it so that if a robot was undocked and the charging bit went
+    on it called the checkDock function on that dock to see if we're docked
+  * From Aria - Modified ArConfig so that it can save unknown sections
+    and parameters so that information isn't lost if nothing knows
+    about it this run (To Arnl this means if you save Arnl.p from
+    different programs you won't lose the settings in the sections you
+    aren't using right now)
+  * Modifed the ArServerHandlerLocalization so that it can take spread 
+    parameters so that people can have better control over localization
+  
+
+ARNL 1.4.3 
+December 7, 2005
+------------------------
+
+  * Built  shared libraries with -fPIC flag for greater compatability.
+
+ARNL 1.4.2
+September 15, 2005
+------------------------
+
+  * Built with new ARIA library with minor fixes
+  * Fixed theoretical deadlock in SONARNL
+
+ARNL 1.4.1 
+September 13, 2005
+-------------------------
+
+(SONARNL release only)
+  * Fixed a crash that would sometimes happen in Windows
+
+ARNL 1.4.0 
+August 31, 2005
+-------------------------
+
+Fixes:
+  * When there were both lines and points in the map, the occupancy grid
+    was filled using either points or lines. The map memory was allocated
+    and deleted with each set. Fixed this to allocate memory once and fill
+    the occupancy grid with both points and lines. 
+  * When robot was completely blocked as when it is in a tight space, the
+    fire() from ArPathPlanningTask was using the uninitialized searchFactor
+    which sometimes was zero. This caused the local search rectangle to skirt
+    too close to the robot. Fixed this by bounding the lower limit to 1.0;
+  * Changed the path planning from and to positions to the work with the
+    closest legal point on the grid. This helps in cases where the robot is
+    too close to an obstacle and the actual pose is in an occupied cell. Now
+    the to and from points are legalized to within a robot width.
+
+Important Changes:
+  * Changed MinutesToChargeFor parameter in docking, 0 is now "don't
+    finish based on time", -1 is now "undock as soon as docked" (this is
+    so that the parameter matches VoltageToChargeTo)
+
+Enhancements:
+  * Forbidden areas in maps may have a rotation (requires recent Mapper3 to generate,
+    note that rotated forbidden areas will not be properly interpreted by older versions
+    of ARNL)
+  * Charging on robots that support it can now finish when its done and it 
+    drops into float mode, you'll need the most recent robot operating 
+    system for this to work
+  * Lots of changes to docking to make it work more smoothly with regards 
+    to interrupted modes and modes that tried to activate
+  * Changes to ArServerInfoLocalization so that MobileEyes can tell
+    when the robot is lost (it will tell you the score and let you
+    localize the robot)
+  * SonARNL will now work correctly on a robot that could have two sonar
+    rings but only has one (this is the change to ignore sonar readings 
+    in Aria)
+  * SWIG wrappers for Python and Java are now included
+
+
+
+
+
+
+
+ARNL 1.3.3
+May 31, 2005
+-------------------------
+
+Fixes:
+  * Fixes STL crash on Windows in sonar localization
+  * Fixes bug in path planning that produced erroneous movement in a 
+	rare condition
+  * Uses either RotAcc and RotDec to determine change in velocity rather
+        than both (path planning)
+  * Fixes path planning code that was problematic for Powerbot, and similar.
+
+
+
+ARNL 1.3.2 
+May 23, 2005
+--------------------------
+
+Fixes:
+  * Fixes annoying warning messages on Windows, and a potential mutex violation
+  * guiServerSonar does not try to provide MobileEyes points with the map, just lines.
+
+
+
+ARNL 1.3.1
+May 19, 2005
+---------------------------
+
+Enhancements:
+  * SONARNL prevents ArServerModeStop from turning off the sonar
+  * New ARIA library with bug fix.
+
+
+
+ARNL 1.3.0
+May 16, 2005
+---------------------------
+
+Enhancements:
+
+  * Sonar localization has been added. "ARNL" includes both localization methods.
+    "SONARNL" is just sonar localization.
+  * New path planning parameters added:
+      GoalOccupiedFailDistance (Note: Previously reported for 1.2-0 accidentally)
+      CurvatureSpeedFactor
+
+
+ARNL 1.2.0
+March 29, 2005
+---------------------------
+
+Fixes and Critical Changes:
+  * localizeRobotAtHome functions use ArConfig values as defaults rather than
+      supplied parameters or constant defaults.
+
+Enhancements:
+  * New localization parameters added:
+      LaserIncrement, TriggerTimeFlag (and related parameters for periodic 
+      trigger), OccThreshold (replaces ObsThreshold)
+  * New path planning parameters added:
+      SlowSpeed, SideClearanceAtSlowSpeed, FastSpeed,
+      SideClearanceAtFastSpeed, PlanEveryTime, RecoverOnFail, GoalSwitchTime,
+      GoalTransAccel, GoalRotAccel, etc., HeadingRotSpeed, etc., UseEncoderFlag,
+  * Can E-Stop when path planning, if a collision may happen sooner than
+    the robot can slow normally.
+  * Various other bug fixes, optimization, and dead code removal. Will
+    especially drive smoother with larger robots (e.g. Powerbot) and at
+    faster speeds, and approach goals with greater accuracy.
+  * Path planner's state can be read by calling getState(), or get a text
+    description from getStatusString(), or you can register a callback with
+    addStateChangedCB(). 
+  * Net server supports Powerbot dock 
+  * Some shape drawing by net server fixed or changed
+  * New data fields, "pathPlannerStatus" and "goalName" are published by 
+    ArServerModeGoto with a string identifying the current status and the name 
+    of the current or last goal ("Navigation" group). "getGoals" has a list of all 
+    goals ("Navigation Info" group).
+
+Important enhancements from Aria:
+  * New classes in ArNetworking in ArServerFileUtils and ArClientFileUtils for
+    transfering files over the ArNetworking connection, really only works in 
+    Linux (and is mostly for the new feature in Mapper3)
+  * User and password information can now be required to connect with 
+    ArNetworking, see the ArNetworking overview in the documentation for more 
+    details (and examples/guiServer.userInfo);
+
+
+ARNL 1.1
+August, 2004
+---------------------------
+
+  ???
+
+
+
+ARNL 1.0
+February, 204
+---------------------------
+
+First public release!
+
