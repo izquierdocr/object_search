@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+
+<launch>
+
+   <!--Sound Play node -->
+   <node pkg="sound_play" type="soundplay_node.py" name="sound_play_node" output="screen"/>
+
+   <!-- Kinect -->
+   <include file="$(find openni_launch)/launch/openni.launch">
+      <arg name="depth_registration" default="true" />
+   </include>
+
+   <!-- Kinect motion -->
+   <node pkg="kinect_aux" type="kinect_aux_node" name="kinect_move_node" output="screen"/>
+
+
+   <!-- Object Recognition ros node -->
+   <node pkg="object_recognition_core" type="detection" name="object_recognition_node" args="-c $(find object_search)/config/detection.object.ros.ork" output="screen"/>
+   <!--Linemod-->
+   <!--node pkg="object_recognition_core" type="detection" name="object_recognition_node" args="-c $(find object_recognition_linemod)/conf/detection.ros.ork" output="screen"/-->
+
+   <!-- Visualization node -->
+   <node pkg="rviz" type="rviz" name="rviz_node"/>
+
+</launch>
